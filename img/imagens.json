@@ -1,0 +1,15 @@
+---
+---
+[
+{%- assign arquivos_imagem = site.static_files | where_exp: "arquivo", "arquivo.path contains '/img/'" | sort: "path" -%}
+{%- assign extensoes_imagem = ".jpg,.jpeg,.png,.gif,.webp,.avif,.svg" | split: "," -%}
+{%- assign primeira_imagem = true -%}
+{%- for arquivo in arquivos_imagem -%}
+    {%- assign extensao = arquivo.extname | downcase -%}
+    {%- if extensoes_imagem contains extensao -%}
+        {%- unless primeira_imagem -%},{%- endunless -%}
+        {{ arquivo.name | jsonify }}
+        {%- assign primeira_imagem = false -%}
+    {%- endif -%}
+{%- endfor -%}
+]

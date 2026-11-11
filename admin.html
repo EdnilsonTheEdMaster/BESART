@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BESArt - Painel Admin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <h1>BESArt</h1>
+            <nav>
+                <a href="index.html">Início</a>
+                <a href="sobre.html">Sobre</a>
+                <a href="contato.html">Contato</a>
+                <a href="carrinho.html" id="link-carrinho">Carrinho (0)</a>
+                <a href="login.html" id="link-login">Entrar</a>
+                <a href="admin.html" id="link-admin" style="display: none;">Admin</a>
+                <button id="btn-sair" style="display: none;" onclick="fazerLogout()">Sair</button>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <h2 id="titulo-form" style="text-align: center; margin-bottom: 20px;">Cadastrar Produto</h2>
+        <form id="form-produto">
+            <label for="desc">Descrição do produto</label>
+            <input type="text" id="desc" placeholder="Descrição do Produto" required>
+            <label for="medida">Medidas cadastradas</label>
+            <select id="medida" required>
+                <option value="" selected disabled>Selecione uma medida</option>
+                <option value="__nova__">Cadastrar nova medida...</option>
+            </select>
+            <div id="medida-nova-container" hidden>
+                <label for="medida-nova">Nova medida</label>
+                <input type="text" id="medida-nova" placeholder="Ex.: conjunto, par, caixa" autocomplete="off">
+            </div>
+            <label for="preco">Preço (R$)</label>
+            <input type="number" id="preco" placeholder="Preço (R$)" step="0.01" required>
+
+            <fieldset class="image-picker">
+                <legend>Imagem do produto</legend>
+                <div id="galeria-imagens" class="admin-image-gallery"></div>
+                <p class="form-help">No GitHub Pages, as imagens da pasta img/ são atualizadas automaticamente após a publicação. A prévia local usa as imagens de fallback.</p>
+            </fieldset>
+
+            <label style="display: flex; gap: 10px; align-items: center;">
+                <input type="checkbox" id="destaque"> Mostrar na página inicial?
+            </label>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-acao" id="btn-salvar">Cadastrar Produto</button>
+                <button type="button" class="btn-secundario" id="btn-cancelar" hidden>Cancelar edição</button>
+            </div>
+            <p id="admin-msg" class="admin-msg" role="status" aria-live="polite"></p>
+        </form>
+
+        <section class="admin-products" aria-labelledby="titulo-produtos">
+            <h2 id="titulo-produtos">Produtos cadastrados</h2>
+            <div id="lista-produtos" class="admin-product-list"></div>
+        </section>
+    </main>
+
+    <footer><p>&copy; 2026 BESArt. Todos os direitos reservados.</p></footer>
+    <script src="img/imagens.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Bloqueia a página se não for o administrador
+        const usr = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+        if (!usr || usr.email !== EMAIL_ADMIN) {
+            document.body.innerHTML = "<h2 style='text-align:center; padding: 50px;'>Acesso Negado. Apenas o administrador pode ver esta página.</h2>";
+        } else {
+            const form = document.getElementById('form-produto');
+            const listaProdutos = document.getElementById('lista-produtos');
+            const campoMedida = document.getElementById('medida');
+            const campoNovaMedida = document.getElementById('medida-nova');
+            const containerNovaMedida = document.getElementById('medida-nova-container');
+            const galeriaImagens = document.getElementById('galeria-imagens');
+            const mensagem = document.getElementById('admin-msg');
+            const imagemPadrao = './img/produto-padrao.svg';
+            let produtoEmEdicao = null;
+
+            function escaparHtml(valor) {
+                return String(valor ?? '').replace(/[&<>"']/g, caractere => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                })[caractere]);
+            }
+
+            function atualizarCampoNovaMedida() {
+                const cadastrarNova = campoMedida.value === '__nova__';
+                containerNovaMedida.hidden = !cadastrarNova;
+                campoNovaMedida.required = cadastrarNova;
+                if (!cadastrarNova) campoNovaMedida.value = '';
+            }
+
+            function renderizarMedidas(medidaSelecionada = '') {
+                const medidas = [...new Set(MockDB.selecionar('produtos')
+                    .map(produto => String(produto.medida || '').trim())
+                    .filter(Boolean))];
+
+                campoMedida.innerHTML = '<option value="" disabled>Selecione uma medida</option>' +
+                    medidas.map(medida => `<option value="${escaparHtml(medida)}">${escaparHtml(medida)}</option>`).join('') +
+                    '<option value="__nova__">Cadastrar nova medida...</option>';
+                campoMedida.value = medidaSelecionada || '';
+                atualizarCampoNovaMedida();
+            }
+
+            function renderizarGaleria(imagemSelecionada = 'produto-padrao.svg') {
+                const nomeSelecionado = imagemSelecionada?.startsWith('./img/')
+                    ? imagemSelecionada.slice('./img/'.length)
+                    : imagemSelecionada;
+                const arquivos = new Set((window.IMAGENS_PRODUTO || [])
+                    .filter(nome => typeof nome === 'string' && nome && !/[\\/]|\.\./.test(nome)));
+                arquivos.add('produto-padrao.svg');
+
+                if (nomeSelecionado && !/[\\/]|\.\./.test(nomeSelecionado)) arquivos.add(nomeSelecionado);
+
+                galeriaImagens.innerHTML = [...arquivos].map(nome => `
+                    <label class="admin-image-option">
+                        <input type="radio" name="imagem-produto" value="${escaparHtml(nome)}"${nome === nomeSelecionado ? ' checked' : ''}>
+                        <img src="./img/${escaparHtml(nome)}" alt="">
+                        <span>${escaparHtml(nome)}</span>
+                    </label>
+                `).join('');
+            }
+
+            campoMedida.addEventListener('change', atualizarCampoNovaMedida);
+
+            function renderizarProdutos() {
+                const produtos = MockDB.selecionar('produtos');
+                if (produtos.length === 0) {
+                    listaProdutos.innerHTML = '<p class="empty-state">Nenhum produto cadastrado.</p>';
+                    return;
+                }
+
+                listaProdutos.innerHTML = produtos.map(produto => `
+                    <article class="admin-produto">
+                        <img src="${escaparHtml(produto.imagem_url || imagemPadrao)}" alt="" onerror="this.onerror=null;this.src='${imagemPadrao}'">
+                        <div class="admin-produto-info">
+                            <h3>${escaparHtml(produto.descricao)}</h3>
+                            <p>${escaparHtml(produto.medida)} · R$ ${Number(produto.preco || 0).toFixed(2)}</p>
+                            <p>${produto.destaque ? 'Em destaque' : 'Sem destaque'}</p>
+                        </div>
+                        <div class="admin-produto-acoes">
+                            <button type="button" class="btn-secundario" data-acao="editar" data-id="${escaparHtml(produto.id)}">Editar</button>
+                            <button type="button" class="btn-excluir" data-acao="excluir" data-id="${escaparHtml(produto.id)}">Excluir</button>
+                        </div>
+                    </article>
+                `).join('');
+            }
+
+            function limparFormulario() {
+                form.reset();
+                produtoEmEdicao = null;
+                document.getElementById('titulo-form').textContent = 'Cadastrar Produto';
+                document.getElementById('btn-salvar').textContent = 'Cadastrar Produto';
+                document.getElementById('btn-cancelar').hidden = true;
+                renderizarMedidas();
+                renderizarGaleria();
+                atualizarCampoNovaMedida();
+            }
+
+            form.addEventListener('submit', evento => {
+                evento.preventDefault();
+                const medida = campoMedida.value === '__nova__'
+                    ? campoNovaMedida.value.trim()
+                    : campoMedida.value;
+                if (!medida || medida === '__nova__') {
+                    mensagem.textContent = 'Selecione uma medida ou informe uma nova.';
+                    campoMedida.focus();
+                    return;
+                }
+
+                const nomeImagem = form.querySelector('input[name="imagem-produto"]:checked')?.value;
+                const produto = {
+                    descricao: document.getElementById('desc').value.trim(),
+                    medida,
+                    preco: Number(document.getElementById('preco').value),
+                    destaque: document.getElementById('destaque').checked,
+                    imagem_url: nomeImagem
+                        ? `./img/${nomeImagem}`
+                        : produtoEmEdicao?.imagem_url || imagemPadrao
+                };
+
+                if (produtoEmEdicao) {
+                    MockDB.atualizar('produtos', produtoEmEdicao.id, produto);
+                    mensagem.textContent = 'Produto atualizado localmente.';
+                } else {
+                    MockDB.inserir('produtos', produto);
+                    mensagem.textContent = 'Produto cadastrado localmente.';
+                }
+
+                limparFormulario();
+                renderizarProdutos();
+            });
+
+            document.getElementById('btn-cancelar').addEventListener('click', () => {
+                limparFormulario();
+                mensagem.textContent = '';
+            });
+
+            listaProdutos.addEventListener('click', evento => {
+                const botao = evento.target.closest('button[data-acao]');
+                if (!botao) return;
+
+                const produto = MockDB.selecionar('produtos').find(item => item.id === botao.dataset.id);
+                if (!produto) return;
+
+                if (botao.dataset.acao === 'editar') {
+                    produtoEmEdicao = produto;
+                    document.getElementById('desc').value = produto.descricao;
+                    renderizarMedidas(produto.medida);
+                    campoNovaMedida.value = '';
+                    document.getElementById('preco').value = produto.preco;
+                    document.getElementById('destaque').checked = Boolean(produto.destaque);
+                    renderizarGaleria(produto.imagem_url || imagemPadrao);
+                    document.getElementById('titulo-form').textContent = 'Editar Produto';
+                    document.getElementById('btn-salvar').textContent = 'Salvar Alterações';
+                    document.getElementById('btn-cancelar').hidden = false;
+                    mensagem.textContent = '';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+
+                if (botao.dataset.acao === 'excluir' && confirm(`Excluir "${produto.descricao}"?`)) {
+                    MockDB.excluir('produtos', produto.id);
+                    if (produtoEmEdicao?.id === produto.id) limparFormulario();
+                    mensagem.textContent = 'Produto excluído localmente.';
+                    renderizarProdutos();
+                    renderizarMedidas();
+                }
+            });
+
+            renderizarProdutos();
+            renderizarMedidas();
+            renderizarGaleria();
+            window.IMAGENS_PROMISE?.then(() => {
+                const imagemSelecionada = form.querySelector('input[name="imagem-produto"]:checked')?.value;
+                renderizarGaleria(imagemSelecionada || 'produto-padrao.svg');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-labelledby="title">
+  <title id="title">Imagem de produto indisponível</title>
+  <rect width="600" height="400" fill="#f4efeb"/>
+  <path d="M0 315h600v85H0z" fill="#3b241b"/>
+  <circle cx="450" cy="105" r="52" fill="#b3261e"/>
+  <path d="M250 145h100l-12 38 38 115c8 24-10 42-35 42h-82c-25 0-43-18-35-42l38-115z" fill="#8b5e48" stroke="#171311" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M266 205h68M253 278h94" fill="none" stroke="#f4efeb" stroke-width="8" stroke-linecap="round"/>
+  <path d="M210 348h180" fill="none" stroke="#171311" stroke-width="8" stroke-linecap="round"/>
+</svg>
