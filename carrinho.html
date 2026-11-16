@@ -45,7 +45,7 @@
                 return;
             }
 
-            lista.innerHTML = carrinho.map(item => {
+            lista.innerHTML = carrinho.map((item, indice) => {
                 total += (item.preco * item.quantidade);
                 return `
                     <div class="item-carrinho">
@@ -57,11 +57,35 @@
                             </div>
                         </div>
                         <div class="preco" style="margin: 0;">R$ ${(item.preco * item.quantidade).toFixed(2)}</div>
+                        <button type="button" class="btn-excluir" onclick="removerItemCarrinho(${indice})">Remover</button>
                     </div>
                 `;
             }).join('');
 
+            lista.innerHTML += `
+                <div style="text-align: right; margin-top: 10px;">
+                    <button type="button" class="btn-excluir" onclick="esvaziarCarrinho()">Esvaziar carrinho</button>
+                </div>
+            `;
             document.getElementById('total-carrinho').innerHTML = `<strong>Total: R$ ${total.toFixed(2)}</strong>`;
+        }
+
+        function removerItemCarrinho(indice) {
+            if (!Number.isInteger(indice) || indice < 0 || indice >= carrinho.length) return;
+
+            carrinho.splice(indice, 1);
+            localStorage.setItem('carrinhoLoja', JSON.stringify(carrinho));
+            atualizarContadorCarrinho();
+            renderizarCarrinho();
+        }
+
+        function esvaziarCarrinho() {
+            if (carrinho.length === 0 || !confirm('Deseja remover todos os itens do carrinho?')) return;
+
+            carrinho = [];
+            localStorage.setItem('carrinhoLoja', JSON.stringify(carrinho));
+            atualizarContadorCarrinho();
+            renderizarCarrinho();
         }
 
         function finalizarPedido() {
